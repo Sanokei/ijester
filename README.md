@@ -839,4 +839,4 @@ The first usable version is complete when:
 
 ## License
 
-Choose a source-code license before publishing. Sound assets require their own explicit license records and may not be covered by the source-code license.
+Source code is [MIT licensed](./LICENSE). The bundled placeholder sounds are synthesized in-repo (`scripts/generate-sounds.mjs`) and carry no third-party rights; replacement production sound assets require their own explicit license records and are not covered by the source-code license.

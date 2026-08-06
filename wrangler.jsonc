@@ -6,6 +6,11 @@
   "compatibility_date": "2026-06-27",
   "compatibility_flags": ["nodejs_compat"],
 
+  "routes": [
+    { "pattern": "ijester.com", "custom_domain": true },
+    { "pattern": "www.ijester.com", "custom_domain": true }
+  ],
+
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist/client",

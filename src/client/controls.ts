@@ -9,12 +9,14 @@ export interface ControlHandlers {
 
 /**
  * Minimal control surface: hidden until hover/focus/tap, fully keyboard
- * accessible. "End session" releases the microphone in one action.
+ * accessible. The volume button toggles mute on click and reveals its
+ * slider on hover or keyboard focus. "End session" releases the microphone
+ * in one action.
  */
 export class Controls {
   private readonly root: HTMLElement;
   private readonly pauseButton: HTMLButtonElement;
-  private readonly muteButton: HTMLButtonElement;
+  private readonly volumeButton: HTMLButtonElement;
   private paused = false;
   private muted = false;
 
@@ -31,25 +33,33 @@ export class Controls {
       handlers.onPauseToggle(this.paused);
     });
 
-    this.muteButton = button("Mute", "Mute reaction sounds");
-    this.muteButton.setAttribute("aria-pressed", "false");
-    this.muteButton.addEventListener("click", () => {
+    // Volume group: button (click = mute toggle) + hover/focus slider.
+    const volumeGroup = document.createElement("div");
+    volumeGroup.className = "volume-group";
+
+    this.volumeButton = button("🔊", "Mute reaction sounds");
+    this.volumeButton.setAttribute("aria-pressed", "false");
+    this.volumeButton.addEventListener("click", () => {
       this.setMuted(!this.muted);
       handlers.onMuteToggle(this.muted);
     });
 
-    const volumeWrap = document.createElement("label");
-    volumeWrap.className = "volume";
-    const volumeText = document.createElement("span");
-    volumeText.className = "sr-only";
-    volumeText.textContent = "Reaction volume";
+    const pop = document.createElement("div");
+    pop.className = "volume-pop";
+    const sliderLabel = document.createElement("span");
+    sliderLabel.className = "sr-only";
+    sliderLabel.id = "volume-label";
+    sliderLabel.textContent = "Reaction volume";
     const slider = document.createElement("input");
     slider.type = "range";
     slider.min = "0";
     slider.max = "100";
     slider.value = String(Math.round(initialVolume * 100));
+    slider.setAttribute("aria-labelledby", "volume-label");
     slider.addEventListener("input", () => handlers.onVolume(Number(slider.value) / 100));
-    volumeWrap.append(volumeText, "🔉", slider);
+    pop.append(sliderLabel, slider);
+
+    volumeGroup.append(this.volumeButton, pop);
 
     const privacyButton = button("Privacy", "How privacy works");
     privacyButton.addEventListener("click", () => showPrivacyModal());
@@ -58,7 +68,7 @@ export class Controls {
     endButton.classList.add("end");
     endButton.addEventListener("click", () => handlers.onEnd());
 
-    this.root.append(this.pauseButton, this.muteButton, volumeWrap, privacyButton, endButton);
+    this.root.append(this.pauseButton, volumeGroup, privacyButton, endButton);
     container.appendChild(this.root);
 
     // Tap anywhere reveals controls briefly on touch devices.
@@ -94,8 +104,12 @@ export class Controls {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    this.muteButton.textContent = muted ? "Unmute" : "Mute";
-    this.muteButton.setAttribute("aria-pressed", String(muted));
+    this.volumeButton.textContent = muted ? "🔇" : "🔊";
+    this.volumeButton.setAttribute("aria-pressed", String(muted));
+    this.volumeButton.setAttribute(
+      "aria-label",
+      muted ? "Unmute reaction sounds" : "Mute reaction sounds",
+    );
   }
 }
 
