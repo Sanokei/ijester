@@ -176,8 +176,10 @@ export class Iris {
 
     // Paused/ended wash the color out; error warms and dims slightly.
     const desat = this.state === "paused" || this.state === "ended" ? 0.18 : 1;
+    // Every catalog color passes through here, so softening happens in one
+    // place: saturation eases down and lightness lifts toward white.
     const col = (h: number, s: number, l: number, a = 1) =>
-      `hsl(${h} ${Math.round(s * desat)}% ${l}% / ${a})`;
+      `hsl(${h} ${Math.round(s * 0.66 * desat)}% ${Math.round(l + (100 - l) * 0.14)}% / ${a})`;
 
     const pupilR = R * (0.52 - this.open * 0.16 + this.pulse * 0.04 - this.impact * 0.06);
     const ringOuter = R * (0.9 + this.level * 0.02 + this.impact * 0.04);
@@ -360,8 +362,8 @@ export class Iris {
       c - pupilR * 0.38, c - pupilR * 0.44, 0,
       c - pupilR * 0.38, c - pupilR * 0.44, pupilR * 0.2,
     );
-    key.addColorStop(0, `hsl(0 0% 100% / ${0.75 + this.impact * 0.2})`);
-    key.addColorStop(0.35, "hsl(0 0% 100% / 0.28)");
+    key.addColorStop(0, `hsl(0 0% 100% / ${0.6 + this.impact * 0.2})`);
+    key.addColorStop(0.35, "hsl(0 0% 100% / 0.22)");
     key.addColorStop(1, "hsl(0 0% 100% / 0)");
     ctx.fillStyle = key;
     ctx.beginPath();

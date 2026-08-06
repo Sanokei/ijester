@@ -279,13 +279,24 @@ body.controls-visible .controls {
 .activity-panel {
   width: min(320px, calc(100vw - 1.5rem));
   max-height: 42vh;
-  overflow: auto;
   background: rgb(255 255 255 / 0.92);
   border: 1px solid rgb(29 27 36 / 0.1);
   border-radius: 16px;
   box-shadow: 0 10px 36px rgb(29 27 36 / 0.1);
   backdrop-filter: blur(12px);
   padding: 0.75rem 0.9rem;
+}
+
+/* OverlayScrollbars floats the bar over the content, keeping the panel's
+   rounded corners; these vars slim it down to match the aesthetic. */
+.activity-panel .os-scrollbar {
+  --os-size: 10px;
+  --os-padding-perpendicular: 3px;
+  --os-padding-axis: 6px;
+  --os-handle-border-radius: 999px;
+  --os-handle-bg: rgb(29 27 36 / 0.18);
+  --os-handle-bg-hover: rgb(29 27 36 / 0.32);
+  --os-handle-bg-active: rgb(29 27 36 / 0.4);
 }
 
 .activity-panel h3 {

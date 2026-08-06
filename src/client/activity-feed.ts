@@ -3,6 +3,8 @@
  * pipeline is doing — evaluation moments, the cue pill that played, or
  * "stayed quiet" when the classifier chose silence.
  */
+import { OverlayScrollbars } from "overlayscrollbars";
+import "overlayscrollbars/overlayscrollbars.css";
 
 const MAX_ENTRIES = 30;
 
@@ -35,6 +37,16 @@ export class ActivityFeed {
 
     this.root.append(heading, this.list);
     container.appendChild(this.root);
+
+    // Overlay scrollbar floats above the content instead of carving out a
+    // gutter, so the panel's rounded corners stay intact while scrolling.
+    OverlayScrollbars(this.root, {
+      scrollbars: {
+        theme: "os-theme-dark",
+        autoHide: "leave",
+        autoHideDelay: 600,
+      },
+    });
   }
 
   toggle(): boolean {

@@ -143,7 +143,7 @@ async function start(stream: MediaStream): Promise<void> {
       debugPanel?.append(`cue: ${msg.cue} gain=${msg.gain} delay=${msg.delay_ms} played=${played}`);
     },
     notice: (msg) => {
-      debugPanel?.append(`notice: ${msg.code}`);
+      debugPanel?.append(`notice: ${msg.code}${msg.message ? ` — ${msg.message}` : ""}`);
     },
     error: (msg) => {
       debugPanel?.append(`error: ${msg.code}`);
@@ -278,7 +278,7 @@ if (debugMode) {
           debugPanel?.append(`cue: ${m.cue}`);
         },
         transcript_debug: (m) => debugPanel?.transcript(m.segments),
-        notice: (m) => debugPanel?.append(`notice: ${m.code}`),
+        notice: (m) => debugPanel?.append(`notice: ${m.code}${m.message ? ` — ${m.message}` : ""}`),
         error: (m) => debugPanel?.append(`error: ${m.code}`),
       });
       await client.create();

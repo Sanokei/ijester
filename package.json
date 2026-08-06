@@ -15,6 +15,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "overlayscrollbars": "^2.16.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
