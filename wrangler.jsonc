@@ -1,0 +1,53 @@
+// iJester — one page, one iris, one Durable Object per visit.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ijester",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-06-27",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "IJESTER_SESSION",
+        "class_name": "IJesterSession"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["IJesterSession"]
+    }
+  ],
+
+  // Workers AI powers the default speech-to-text path (Whisper). Set
+  // TRANSCRIPTION_PROVIDER to "mock" for offline development.
+  "ai": {
+    "binding": "AI"
+  },
+
+  "vars": {
+    "DEEPSEEK_BASE_URL": "https://api.deepseek.com",
+    "DEEPSEEK_MODEL": "deepseek-v4-flash",
+    "TRANSCRIPTION_PROVIDER": "workers-ai",
+    "SESSION_TTL_SECONDS": "1800",
+    "MAX_SESSION_SECONDS": "14400",
+    "MAX_AUDIO_BYTES_PER_MINUTE": "2500000",
+    "REACTION_MIN_INTERVAL_MS": "2500",
+    "REACTION_MODE": "standard",
+    "LOG_LEVEL": "info"
+  }
+}

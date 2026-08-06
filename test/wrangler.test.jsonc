@@ -1,0 +1,34 @@
+// Hermetic config for @cloudflare/vitest-pool-workers: no assets, no AI
+// binding, mock providers only. Mirrors production bindings otherwise.
+{
+  "name": "ijester-test",
+  "main": "../src/worker/index.ts",
+  "compatibility_date": "2026-06-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "IJESTER_SESSION",
+        "class_name": "IJesterSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["IJesterSession"]
+    }
+  ],
+  "vars": {
+    "DEEPSEEK_BASE_URL": "https://api.deepseek.com",
+    "DEEPSEEK_MODEL": "deepseek-v4-flash",
+    "TRANSCRIPTION_PROVIDER": "mock",
+    "SESSION_TTL_SECONDS": "1800",
+    "MAX_SESSION_SECONDS": "14400",
+    "MAX_AUDIO_BYTES_PER_MINUTE": "2500000",
+    "REACTION_MIN_INTERVAL_MS": "1",
+    "REACTION_MODE": "standard",
+    "LOG_LEVEL": "warn",
+    "SESSION_TOKEN_SECRET": "integration-test-secret"
+  }
+}

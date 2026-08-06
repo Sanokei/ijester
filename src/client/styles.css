@@ -1,0 +1,457 @@
+/* iJester — one dark room, one iris. */
+
+:root {
+  --bg-0: #08060d;
+  --bg-1: #0e0a18;
+  --ink: #d8d2e8;
+  --ink-dim: #7d7593;
+  --accent: #8f7bf0;
+  --danger: #d0748a;
+
+  /* Live visual inputs, written by iris.ts every frame. */
+  --open: 0.35;      /* 0 closed .. 1 wide open */
+  --level: 0;        /* microphone energy 0..1 */
+  --pulse: 0;        /* evaluating pulse 0..1 */
+  --impact: 0;       /* cue impact flash 0..1 */
+  --iris-hue: 258;
+  --iris-sat: 62%;
+  --spin: 0deg;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(120vmax 120vmax at 50% 42%, var(--bg-1), var(--bg-0) 70%);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* ------------------------------------------------------------------ iris */
+
+.iris-stage {
+  position: relative;
+  width: min(58vmin, 480px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 50%;
+  outline: none;
+}
+
+.iris-stage:focus-visible {
+  box-shadow: 0 0 0 3px rgb(143 123 240 / 0.5);
+}
+
+.iris-stage > div {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.iris-glow {
+  background: radial-gradient(
+    circle,
+    hsl(var(--iris-hue) var(--iris-sat) 62% / calc(0.18 + var(--level) * 0.25 + var(--impact) * 0.45)) 0%,
+    transparent 62%
+  );
+  filter: blur(18px);
+  transform: scale(calc(1.15 + var(--level) * 0.2 + var(--impact) * 0.35));
+}
+
+.iris-body {
+  inset: 7%;
+  background:
+    radial-gradient(
+      circle at 50% 46%,
+      hsl(var(--iris-hue) var(--iris-sat) 26%) 0%,
+      hsl(var(--iris-hue) var(--iris-sat) 17%) 42%,
+      hsl(calc(var(--iris-hue) + 16) var(--iris-sat) 10%) 72%,
+      #050308 100%
+    );
+  box-shadow:
+    inset 0 0 46px rgb(0 0 0 / 0.75),
+    0 0 40px hsl(var(--iris-hue) var(--iris-sat) 40% / calc(0.12 + var(--impact) * 0.5));
+  transform: scale(calc(0.86 + var(--open) * 0.14 + var(--level) * 0.05 + var(--impact) * 0.06));
+}
+
+/* Radial fibers: a conic gradient masked into a ring, slowly rotating. */
+.iris-fibers {
+  inset: 9%;
+  background: repeating-conic-gradient(
+    from var(--spin),
+    hsl(var(--iris-hue) var(--iris-sat) 46% / 0.5) 0deg 1.6deg,
+    transparent 1.6deg 4.2deg,
+    hsl(calc(var(--iris-hue) - 22) var(--iris-sat) 38% / 0.35) 4.2deg 5.4deg,
+    transparent 5.4deg 8deg
+  );
+  -webkit-mask: radial-gradient(
+    circle,
+    transparent calc(17% + (1 - var(--open)) * 13%),
+    #000 calc(24% + (1 - var(--open)) * 13%),
+    #000 68%,
+    transparent 74%
+  );
+  mask: radial-gradient(
+    circle,
+    transparent calc(17% + (1 - var(--open)) * 13%),
+    #000 calc(24% + (1 - var(--open)) * 13%),
+    #000 68%,
+    transparent 74%
+  );
+  opacity: calc(0.55 + var(--pulse) * 0.45);
+  transform: scale(calc(0.98 + var(--level) * 0.04));
+}
+
+.iris-pupil {
+  inset: 33%;
+  background: radial-gradient(circle at 46% 42%, #0b0812 0%, #030204 62%);
+  box-shadow:
+    0 0 24px rgb(0 0 0 / 0.9),
+    inset 0 0 18px rgb(0 0 0 / 1);
+  transform: scale(calc(1.18 - var(--open) * 0.38 + var(--pulse) * 0.12 - var(--impact) * 0.2));
+}
+
+.iris-highlight {
+  inset: 38% 44% 48% 40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.5), transparent 70%);
+  filter: blur(2px);
+  opacity: calc(0.5 + var(--impact) * 0.5);
+  transform: translate(calc(var(--level) * -4px), calc(var(--level) * -3px));
+}
+
+/* Discrete state tints */
+.iris-stage[data-state="error"] { --iris-hue: 32; }
+.iris-stage[data-state="paused"],
+.iris-stage[data-state="ended"] { --iris-sat: 12%; }
+.iris-stage[data-state="cueing"] { --iris-hue: 288; }
+
+.iris-hint {
+  position: absolute;
+  top: calc(100% + 1.4rem);
+  width: 100%;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  transition: opacity 0.6s ease;
+}
+
+.iris-hint[hidden] {
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------- status + a11y */
+
+.status-label {
+  position: fixed;
+  top: 1.1rem;
+  left: 50%;
+  translate: -50% 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.mic-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1.1rem;
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 999px;
+  padding: 0.32rem 0.7rem;
+}
+
+.mic-indicator.active {
+  display: flex;
+}
+
+.mic-indicator .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e0566f;
+  animation: mic-blink 2.2s ease-in-out infinite;
+}
+
+.mic-indicator.paused .dot {
+  background: var(--ink-dim);
+  animation: none;
+}
+
+@keyframes mic-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- controls */
+
+.controls {
+  position: fixed;
+  bottom: 1.4rem;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(16 12 26 / 0.82);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.controls:hover,
+.controls:focus-within,
+body.controls-visible .controls {
+  opacity: 1;
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+.controls button {
+  appearance: none;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.05);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.controls button:hover {
+  background: rgb(255 255 255 / 0.11);
+}
+
+.controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.controls button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgb(143 123 240 / 0.18);
+}
+
+.controls .volume {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.3rem;
+}
+
+.controls input[type="range"] {
+  width: 88px;
+  accent-color: var(--accent);
+}
+
+.controls .end {
+  border-color: rgb(208 116 138 / 0.45);
+}
+
+.controls .end:hover {
+  background: rgb(208 116 138 / 0.16);
+}
+
+/* ---------------------------------------------------------------- modal */
+
+dialog {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #171226, #100c1b);
+  color: var(--ink);
+  max-width: min(26rem, calc(100vw - 2.5rem));
+  padding: 1.8rem 1.9rem 1.5rem;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+}
+
+dialog::backdrop {
+  background: rgb(4 3 8 / 0.72);
+  backdrop-filter: blur(6px);
+}
+
+dialog h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+dialog p {
+  margin: 0 0 0.85rem;
+  line-height: 1.55;
+  color: #b9b1cd;
+  font-size: 0.94rem;
+}
+
+dialog ul {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  color: #b9b1cd;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.modal-actions button {
+  appearance: none;
+  font: inherit;
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--ink);
+}
+
+.modal-actions .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #14101f;
+  font-weight: 600;
+}
+
+.modal-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.privacy-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------- debug panel */
+
+.debug-panel {
+  position: fixed;
+  top: 3.2rem;
+  left: 1rem;
+  width: 300px;
+  max-height: 70vh;
+  overflow: auto;
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  background: rgb(10 8 16 / 0.92);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.debug-panel h3 {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+}
+
+.debug-panel .cue-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.debug-panel .cue-buttons button {
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.debug-panel .log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debug-panel .log li {
+  padding: 0.15rem 0;
+  border-top: 1px solid rgb(255 255 255 / 0.05);
+  color: #a79ec2;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------- motion prefs */
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-indicator .dot {
+    animation: none;
+  }
+
+  .iris-fibers {
+    background: radial-gradient(
+      circle,
+      hsl(var(--iris-hue) var(--iris-sat) 40% / 0.4),
+      transparent 70%
+    );
+  }
+
+  .iris-stage > div {
+    transition: transform 0.4s ease, opacity 0.4s ease;
+  }
+}

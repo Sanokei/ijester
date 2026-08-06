@@ -1,0 +1,46 @@
+{
+  "version": "v1",
+  "license": "All files synthesized by scripts/generate-sounds.mjs (CC0 placeholders).",
+  "sounds": [
+    {
+      "id": "laugh_light",
+      "file": "/sounds/laugh-light.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "laugh_big",
+      "file": "/sounds/laugh-big.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "ooo",
+      "file": "/sounds/ooo.wav",
+      "defaultGain": 0.58
+    },
+    {
+      "id": "aww",
+      "file": "/sounds/aww.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "gasp",
+      "file": "/sounds/gasp.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "boo_soft",
+      "file": "/sounds/boo-soft.wav",
+      "defaultGain": 0.45
+    },
+    {
+      "id": "dramatic_impact",
+      "file": "/sounds/dramatic-impact.wav",
+      "defaultGain": 0.6
+    },
+    {
+      "id": "knife_sting",
+      "file": "/sounds/knife-sting.wav",
+      "defaultGain": 0.5
+    }
+  ]
+}

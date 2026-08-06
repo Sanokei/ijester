@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["bun-types"]
+  },
+  "include": [
+    "src/tests",
+    "src/shared",
+    "src/durable-object/conversation-window.ts",
+    "src/durable-object/reaction-policy.ts",
+    "src/durable-object/state-machine.ts",
+    "src/durable-object/protocol.ts",
+    "src/providers/mock.ts",
+    "src/providers/deepseek.ts",
+    "src/providers/reaction-model.ts",
+    "src/providers/transcription.ts",
+    "src/worker/session-token.ts"
+  ]
+}

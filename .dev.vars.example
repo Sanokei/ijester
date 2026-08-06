@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development. Never commit real values.
+# DEEPSEEK_API_KEY is the same key the arena worker uses; without it the
+# reaction classifier falls back to a local heuristic.
+DEEPSEEK_API_KEY=
+STT_API_KEY=
+SESSION_TOKEN_SECRET=dev-only-not-secret-change-me-please-0123456789
