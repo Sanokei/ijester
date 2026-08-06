@@ -1,105 +1,105 @@
 {
-  "version": "v1",
-  "license": "All files synthesized by scripts/generate-sounds.mjs (CC0 placeholders).",
+  "version": "v2",
+  "license": "All files are CC0 1.0 recordings from freesound.org, trimmed and loudness-normalized (-16 LUFS). Per-file source pages live in src/shared/sound-catalog.ts.",
   "sounds": [
     {
       "id": "laugh_light",
-      "file": "/sounds/laugh-light.wav",
+      "file": "/sounds/laugh-light.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "laugh_big",
-      "file": "/sounds/laugh-big.wav",
+      "file": "/sounds/laugh-big.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "ooo",
-      "file": "/sounds/ooo.wav",
+      "file": "/sounds/ooo.mp3",
       "defaultGain": 0.58
     },
     {
       "id": "aww",
-      "file": "/sounds/aww.wav",
+      "file": "/sounds/aww.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "gasp",
-      "file": "/sounds/gasp.wav",
+      "file": "/sounds/gasp.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "boo_soft",
-      "file": "/sounds/boo-soft.wav",
+      "file": "/sounds/boo-soft.mp3",
       "defaultGain": 0.45
     },
     {
       "id": "dramatic_impact",
-      "file": "/sounds/dramatic-impact.wav",
+      "file": "/sounds/dramatic-impact.mp3",
       "defaultGain": 0.6
     },
     {
       "id": "knife_sting",
-      "file": "/sounds/knife-sting.wav",
+      "file": "/sounds/knife-sting.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "drum_sting",
-      "file": "/sounds/drum-sting.wav",
+      "file": "/sounds/drum-sting.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "sad_trombone",
-      "file": "/sounds/sad-trombone.wav",
+      "file": "/sounds/sad-trombone.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "crickets",
-      "file": "/sounds/crickets.wav",
+      "file": "/sounds/crickets.mp3",
       "defaultGain": 0.45
     },
     {
       "id": "airhorn",
-      "file": "/sounds/airhorn.wav",
+      "file": "/sounds/airhorn.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "boing",
-      "file": "/sounds/boing.wav",
+      "file": "/sounds/boing.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "tada",
-      "file": "/sounds/tada.wav",
+      "file": "/sounds/tada.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "applause",
-      "file": "/sounds/applause.wav",
+      "file": "/sounds/applause.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "ding",
-      "file": "/sounds/ding.wav",
+      "file": "/sounds/ding.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "magic_sparkle",
-      "file": "/sounds/magic-sparkle.wav",
+      "file": "/sounds/magic-sparkle.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "record_scratch",
-      "file": "/sounds/record-scratch.wav",
+      "file": "/sounds/record-scratch.mp3",
       "defaultGain": 0.55
     },
     {
       "id": "suspense_riser",
-      "file": "/sounds/suspense-riser.wav",
+      "file": "/sounds/suspense-riser.mp3",
       "defaultGain": 0.5
     },
     {
       "id": "heartbeat",
-      "file": "/sounds/heartbeat.wav",
+      "file": "/sounds/heartbeat.mp3",
       "defaultGain": 0.45
     }
   ]

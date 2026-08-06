@@ -1,8 +1,9 @@
 /**
- * Generates the placeholder reaction sounds as 16-bit mono WAV files in
- * public/sounds/, plus the client manifest. Everything is synthesized from
- * scratch, so the assets are license-clean (CC0). Production should replace
- * these with licensed recordings — the manifest structure stays the same.
+ * Generates synthesized stand-in reaction sounds as 16-bit mono WAV files in
+ * public/sounds/. The shipped assets are CC0 recordings from freesound.org
+ * (see src/shared/sound-catalog.ts); this script remains as a license-clean
+ * fallback if one of them ever needs replacing. It writes manifest.synth.json
+ * so it can never clobber the real manifest.json.
  *
  * Run: bun scripts/generate-sounds.mjs
  */
@@ -436,7 +437,7 @@ for (const sound of SOUNDS) {
 }
 
 const manifest = {
-  version: "v1",
+  version: "v1-synth",
   license: "All files synthesized by scripts/generate-sounds.mjs (CC0 placeholders).",
   sounds: SOUNDS.map(({ id, file, defaultGain }) => ({
     id,
@@ -444,5 +445,5 @@ const manifest = {
     defaultGain,
   })),
 };
-writeFileSync(join(OUT_DIR, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log("wrote manifest.json");
+writeFileSync(join(OUT_DIR, "manifest.synth.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+console.log("wrote manifest.synth.json");
