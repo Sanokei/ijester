@@ -41,6 +41,66 @@
       "id": "knife_sting",
       "file": "/sounds/knife-sting.wav",
       "defaultGain": 0.5
+    },
+    {
+      "id": "drum_sting",
+      "file": "/sounds/drum-sting.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "sad_trombone",
+      "file": "/sounds/sad-trombone.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "crickets",
+      "file": "/sounds/crickets.wav",
+      "defaultGain": 0.45
+    },
+    {
+      "id": "airhorn",
+      "file": "/sounds/airhorn.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "boing",
+      "file": "/sounds/boing.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "tada",
+      "file": "/sounds/tada.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "applause",
+      "file": "/sounds/applause.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "ding",
+      "file": "/sounds/ding.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "magic_sparkle",
+      "file": "/sounds/magic-sparkle.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "record_scratch",
+      "file": "/sounds/record-scratch.wav",
+      "defaultGain": 0.55
+    },
+    {
+      "id": "suspense_riser",
+      "file": "/sounds/suspense-riser.wav",
+      "defaultGain": 0.5
+    },
+    {
+      "id": "heartbeat",
+      "file": "/sounds/heartbeat.wav",
+      "defaultGain": 0.45
     }
   ]
 }

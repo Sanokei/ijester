@@ -49,7 +49,7 @@ describe("policy gate", () => {
   });
 
   test("unknown cue is rejected", () => {
-    const decision = evaluateProposal(proposal({ cue: "airhorn" }), ctx());
+    const decision = evaluateProposal(proposal({ cue: "vine_boom" }), ctx());
     expect(decision.allowed).toBe(false);
     expect(decision.reasons).toContain("unknown_cue");
   });

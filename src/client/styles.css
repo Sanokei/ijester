@@ -7,15 +7,6 @@
   --ink-dim: #8e8a9a;
   --accent: #5b54c9;
   --danger: #b8556c;
-
-  /* Live visual inputs, written by iris.ts every frame. */
-  --open: 0.35;      /* 0 closed .. 1 wide open */
-  --level: 0;        /* microphone energy 0..1 */
-  --pulse: 0;        /* evaluating pulse 0..1 */
-  --impact: 0;       /* cue impact flash 0..1 */
-  --iris-hue: 252;
-  --iris-sat: 16%;
-  --spin: 0deg;
 }
 
 * {
@@ -63,90 +54,13 @@ body {
   box-shadow: 0 0 0 3px rgb(91 84 201 / 0.35);
 }
 
-.iris-stage > div {
+.iris-canvas {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
-
-.iris-glow {
-  background: radial-gradient(
-    circle,
-    hsl(var(--iris-hue) 40% 60% / calc(0.10 + var(--level) * 0.18 + var(--impact) * 0.35)) 0%,
-    transparent 62%
-  );
-  filter: blur(18px);
-  transform: scale(calc(1.15 + var(--level) * 0.2 + var(--impact) * 0.35));
-}
-
-.iris-body {
-  inset: 7%;
-  background:
-    radial-gradient(
-      circle at 50% 46%,
-      hsl(var(--iris-hue) var(--iris-sat) 96%) 0%,
-      hsl(var(--iris-hue) var(--iris-sat) 90%) 42%,
-      hsl(calc(var(--iris-hue) + 12) var(--iris-sat) 82%) 72%,
-      hsl(var(--iris-hue) var(--iris-sat) 74%) 100%
-    );
-  box-shadow:
-    inset 0 0 42px rgb(29 27 36 / 0.08),
-    0 6px 32px rgb(29 27 36 / calc(0.08 + var(--impact) * 0.16));
-  transform: scale(calc(0.86 + var(--open) * 0.14 + var(--level) * 0.05 + var(--impact) * 0.06));
-}
-
-/* Radial fibers: a conic gradient masked into a ring, slowly rotating. */
-.iris-fibers {
-  inset: 9%;
-  background: repeating-conic-gradient(
-    from var(--spin),
-    hsl(var(--iris-hue) 24% 46% / 0.32) 0deg 1.6deg,
-    transparent 1.6deg 4.2deg,
-    hsl(calc(var(--iris-hue) - 22) 20% 56% / 0.22) 4.2deg 5.4deg,
-    transparent 5.4deg 8deg
-  );
-  -webkit-mask: radial-gradient(
-    circle,
-    transparent calc(17% + (1 - var(--open)) * 13%),
-    #000 calc(24% + (1 - var(--open)) * 13%),
-    #000 68%,
-    transparent 74%
-  );
-  mask: radial-gradient(
-    circle,
-    transparent calc(17% + (1 - var(--open)) * 13%),
-    #000 calc(24% + (1 - var(--open)) * 13%),
-    #000 68%,
-    transparent 74%
-  );
-  opacity: calc(0.5 + var(--pulse) * 0.5);
-  transform: scale(calc(0.98 + var(--level) * 0.04));
-}
-
-.iris-pupil {
-  inset: 33%;
-  background: radial-gradient(circle at 46% 42%, #2a2733 0%, #17151d 62%);
-  box-shadow:
-    0 4px 20px rgb(23 21 29 / 0.35),
-    inset 0 0 16px rgb(0 0 0 / 0.55);
-  transform: scale(calc(1.18 - var(--open) * 0.38 + var(--pulse) * 0.12 - var(--impact) * 0.2));
-}
-
-.iris-highlight {
-  inset: 38% 44% 48% 40%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgb(255 255 255 / 0.85), transparent 70%);
-  filter: blur(2px);
-  opacity: calc(0.6 + var(--impact) * 0.4);
-  transform: translate(calc(var(--level) * -4px), calc(var(--level) * -3px));
-}
-
-/* Discrete state tints */
-.iris-stage[data-state="error"] { --iris-hue: 30; --iris-sat: 34%; }
-.iris-stage[data-state="paused"],
-.iris-stage[data-state="ended"] { --iris-sat: 0%; }
-.iris-stage[data-state="cueing"] { --iris-sat: 34%; }
 
 .iris-hint {
   position: absolute;
@@ -271,11 +185,20 @@ body.controls-visible .controls {
   background: rgb(255 255 255 / 0.7);
   color: var(--ink);
   border-radius: 999px;
-  padding: 0.45rem 0.85rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
   font: inherit;
-  font-size: 0.85rem;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.controls button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 1.75;
 }
 
 .controls button:hover {
@@ -328,6 +251,7 @@ body.controls-visible .controls {
 
 .controls .end {
   border-color: rgb(184 85 108 / 0.4);
+  color: var(--danger);
 }
 
 .controls .end:hover {
@@ -482,8 +406,8 @@ dialog ul {
   }
 
   .controls button {
-    padding: 0.4rem 0.7rem;
-    font-size: 0.8rem;
+    width: 2.25rem;
+    height: 2.25rem;
   }
 
   .iris-hint {
@@ -508,15 +432,7 @@ dialog ul {
     animation: none;
   }
 
-  .iris-fibers {
-    background: radial-gradient(
-      circle,
-      hsl(var(--iris-hue) 20% 55% / 0.3),
-      transparent 70%
-    );
-  }
-
-  .iris-stage > div {
-    transition: transform 0.4s ease, opacity 0.4s ease;
+  .iris-canvas {
+    transition: opacity 0.4s ease;
   }
 }

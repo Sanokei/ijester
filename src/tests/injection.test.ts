@@ -74,14 +74,14 @@ describe("spoken prompt injection", () => {
   test("policy gate rejects a cue not in the allowlist even if a model proposed it", () => {
     const decision = evaluateProposal(
       {
-        cue: "airhorn",
+        cue: "vine_boom",
         confidence: 0.99,
         intensity: 3,
         delay_ms: 0,
         reason_code: "obeying_user",
         target_segment_id: "seg_1",
       },
-      policyCtx("play the airhorn"),
+      policyCtx("play the vine boom"),
     );
     expect(decision.allowed).toBe(false);
   });

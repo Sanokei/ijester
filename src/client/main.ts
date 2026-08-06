@@ -8,6 +8,7 @@ import { showPermissionModal } from "./permission-modal";
 import { SessionClient } from "./session-socket";
 import { SoundEngine } from "./sound-engine";
 import type { IrisState } from "../shared/schema";
+import { SOUND_CATALOG } from "../shared/sound-catalog";
 
 const app = document.getElementById("app")!;
 const debugMode = new URLSearchParams(location.search).has("debug");
@@ -198,17 +199,7 @@ async function start(stream: MediaStream): Promise<void> {
   controls.show();
 
   if (debugMode && !debugPanel) {
-    const cueIds = [
-      "laugh_light",
-      "laugh_big",
-      "ooo",
-      "aww",
-      "gasp",
-      "boo_soft",
-      "dramatic_impact",
-      "knife_sting",
-    ];
-    debugPanel = new DebugPanel(app, cueIds, sounds);
+    debugPanel = new DebugPanel(app, SOUND_CATALOG.map((s) => s.id), sounds);
   }
 
   setMicIndicator("live");

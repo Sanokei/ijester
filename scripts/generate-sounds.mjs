@@ -217,6 +217,193 @@ function knifeSting() {
   });
 }
 
+/** Place a rendered layer into a longer timeline at an offset. */
+function at(offsetSec, layer, totalSec) {
+  const out = new Float64Array(Math.floor(RATE * totalSec));
+  const start = Math.floor(RATE * offsetSec);
+  for (let i = 0; i < layer.length && start + i < out.length; i++) {
+    out[start + i] = layer[i];
+  }
+  return out;
+}
+
+function drumSting() {
+  // Ba-dum-tss: two toms and a cymbal.
+  const tom = (freq) =>
+    render(0.3, (t) => sin(freq * (1 - 0.3 * Math.min(1, t / 0.2)), t) * decay(t, 14) + noise() * 0.15 * decay(t, 40));
+  const cymbal = highpass(
+    render(1.2, (t) => noise() * ad(t, 0.004, 4.5)),
+    5200,
+  );
+  const total = 1.7;
+  return mix(
+    at(0, tom(170), total),
+    at(0.17, tom(135), total),
+    at(0.36, cymbal, total),
+  );
+}
+
+function sadTrombone() {
+  // Womp womp womp wooomp: four descending brassy notes, heavy vibrato last.
+  const notes = [
+    { f: 233.1, start: 0, len: 0.32 },
+    { f: 220.0, start: 0.36, len: 0.32 },
+    { f: 207.7, start: 0.72, len: 0.32 },
+    { f: 185.0, start: 1.08, len: 1.1 },
+  ];
+  const total = 2.4;
+  const layers = notes.map((n, idx) =>
+    at(
+      n.start,
+      render(n.len, (t) => {
+        const vib = idx === 3 ? 1 + 0.02 * Math.sin(2 * Math.PI * 6.5 * t) : 1 + 0.006 * Math.sin(2 * Math.PI * 5 * t);
+        const slide = idx === 3 ? 1 - 0.04 * Math.min(1, t / n.len) : 1;
+        const env = ad(t, 0.03, idx === 3 ? 2.2 : 6);
+        let s = 0;
+        for (let h = 1; h <= 6; h++) s += Math.sin(2 * Math.PI * n.f * vib * slide * h * t) / h;
+        return s * env * 0.4;
+      }),
+      total,
+    ),
+  );
+  return lowpass(mix(...layers), 2400);
+}
+
+function crickets() {
+  // Chirp groups: amplitude-modulated high sine bursts.
+  return render(2.2, (t) => {
+    const group = t % 0.72;
+    if (group > 0.34) return 0;
+    const pulse = Math.sin(2 * Math.PI * 26 * group) > 0.2 ? 1 : 0;
+    const env = ad(group, 0.01, 9);
+    return sin(4300, t) * pulse * env * (0.5 + 0.5 * sin(3.1, t)) * 0.5;
+  });
+}
+
+function airhorn() {
+  // Brash detuned cluster with an attack pitch rise and triple tap.
+  return render(1.5, (t) => {
+    const taps = t < 0.9 ? 1 : Math.sin(2 * Math.PI * 4.5 * t) > -0.4 ? 1 : 0;
+    const rise = 1 + 0.05 * (1 - Math.min(1, t / 0.06));
+    const env = ad(t, 0.01, 1.6);
+    let s = 0;
+    for (const f of [466.2, 470.5, 462.3]) {
+      for (let h = 1; h <= 5; h++) s += Math.sin(2 * Math.PI * f * rise * h * t) / (h * 1.4);
+    }
+    return s * env * taps * 0.22;
+  });
+}
+
+function boing() {
+  // Cartoon spring: fast pitch drop with a decaying wobble.
+  return render(0.85, (t) => {
+    const wobble = 1 + 0.35 * Math.sin(2 * Math.PI * 13 * t) * decay(t, 4);
+    const f = (380 - 270 * Math.min(1, t / 0.5)) * wobble;
+    const env = ad(t, 0.005, 5);
+    return (sin(f, t) * 0.7 + sin(f * 2, t) * 0.2) * env;
+  });
+}
+
+function tada() {
+  // Quick arpeggio into a held bright chord.
+  const total = 1.9;
+  const arp = [523.3, 659.3, 784.0].map((f, i) =>
+    at(
+      i * 0.09,
+      render(0.14, (t) => (sin(f, t) + 0.4 * sin(f * 2, t)) * ad(t, 0.004, 14) * 0.5),
+      total,
+    ),
+  );
+  const chord = at(
+    0.28,
+    render(1.5, (t) => {
+      const env = ad(t, 0.02, 2.2);
+      let s = 0;
+      for (const f of [523.3, 659.3, 784.0, 1046.5]) s += sin(f * (1 + 0.004 * Math.sin(2 * Math.PI * 5 * t)), t);
+      return s * env * 0.18;
+    }),
+    total,
+  );
+  const shimmer = at(0.28, highpass(render(1.4, (t) => noise() * ad(t, 0.05, 3) * 0.1), 6000), total);
+  return mix(...arp, chord, shimmer);
+}
+
+function applause() {
+  // A crowd of random claps, densest at the start.
+  const total = 2.6;
+  const out = new Float64Array(Math.floor(RATE * total));
+  for (let clap = 0; clap < 260; clap++) {
+    const when = Math.abs(noise()) * total * (0.15 + Math.abs(noise()) * 0.85);
+    const start = Math.floor(when * RATE);
+    const strength = (0.4 + Math.abs(noise()) * 0.6) * decay(when, 1.1);
+    const len = Math.floor(RATE * 0.025);
+    for (let i = 0; i < len && start + i < out.length; i++) {
+      out[start + i] += noise() * Math.exp(-i / (RATE * 0.004)) * strength;
+    }
+  }
+  return lowpass(highpass(out, 900), 5200);
+}
+
+function ding() {
+  // Bright bell with slight inharmonic partial.
+  return render(1.3, (t) => {
+    const env = ad(t, 0.002, 3.8);
+    return (sin(1567.98, t) + 0.5 * sin(1567.98 * 2.02, t) + 0.2 * sin(1567.98 * 3.1, t)) * env * 0.4;
+  });
+}
+
+function magicSparkle() {
+  // Ascending pentatonic twinkles with shimmer.
+  const notes = [1046.5, 1174.7, 1318.5, 1568.0, 1760.0, 2093.0];
+  const total = 1.5;
+  const layers = notes.map((f, i) =>
+    at(
+      i * 0.11,
+      render(0.5, (t) => (sin(f, t) + 0.4 * sin(f * 2.01, t)) * ad(t, 0.003, 7) * 0.35),
+      total,
+    ),
+  );
+  const shimmer = highpass(render(total, (t) => noise() * ad(t, 0.2, 2.2) * 0.08), 7000);
+  return mix(...layers, shimmer);
+}
+
+function recordScratch() {
+  // Needle drag: noise through a fast-wobbling resonant sweep, then stop.
+  const raw = render(0.6, (t) => {
+    const wobble = Math.sin(2 * Math.PI * (9 + 26 * t) * t);
+    const env = t < 0.5 ? 0.6 + 0.4 * Math.abs(wobble) : decay(t - 0.5, 40);
+    return noise() * env;
+  });
+  return lowpass(highpass(raw, 500), 3000 + 0);
+}
+
+function suspenseRiser() {
+  // Rising tone + noise swell that cuts off at the top.
+  return render(2.1, (t) => {
+    const prog = Math.min(1, t / 1.9);
+    const f = 90 * Math.pow(4.2, prog);
+    const env = t < 1.95 ? 0.15 + 0.85 * prog ** 1.6 : decay(t - 1.95, 45);
+    let s = 0;
+    for (let h = 1; h <= 5; h++) s += Math.sin(2 * Math.PI * f * h * t) / (h * 1.3);
+    const rumble = noise() * 0.25 * prog;
+    return (s * 0.35 + rumble) * env;
+  });
+}
+
+function heartbeat() {
+  // Lub-dub pairs, low and quiet.
+  const total = 2.6;
+  const thump = (freq) =>
+    render(0.22, (t) => sin(freq * (1 - 0.25 * Math.min(1, t / 0.18)), t) * ad(t, 0.008, 16));
+  const layers = [];
+  for (let beat = 0; beat < 3; beat++) {
+    const base = beat * 0.9;
+    layers.push(at(base, thump(64), total));
+    layers.push(at(base + 0.22, thump(52), total));
+  }
+  return lowpass(mix(...layers), 240);
+}
+
 // ---------------------------------------------------------------- output
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -230,6 +417,18 @@ const SOUNDS = [
   { id: "boo_soft", file: "boo-soft.wav", gen: booSoft, defaultGain: 0.45 },
   { id: "dramatic_impact", file: "dramatic-impact.wav", gen: dramaticImpact, defaultGain: 0.6 },
   { id: "knife_sting", file: "knife-sting.wav", gen: knifeSting, defaultGain: 0.5 },
+  { id: "drum_sting", file: "drum-sting.wav", gen: drumSting, defaultGain: 0.55 },
+  { id: "sad_trombone", file: "sad-trombone.wav", gen: sadTrombone, defaultGain: 0.5 },
+  { id: "crickets", file: "crickets.wav", gen: crickets, defaultGain: 0.45 },
+  { id: "airhorn", file: "airhorn.wav", gen: airhorn, defaultGain: 0.5 },
+  { id: "boing", file: "boing.wav", gen: boing, defaultGain: 0.5 },
+  { id: "tada", file: "tada.wav", gen: tada, defaultGain: 0.55 },
+  { id: "applause", file: "applause.wav", gen: applause, defaultGain: 0.55 },
+  { id: "ding", file: "ding.wav", gen: ding, defaultGain: 0.5 },
+  { id: "magic_sparkle", file: "magic-sparkle.wav", gen: magicSparkle, defaultGain: 0.5 },
+  { id: "record_scratch", file: "record-scratch.wav", gen: recordScratch, defaultGain: 0.55 },
+  { id: "suspense_riser", file: "suspense-riser.wav", gen: suspenseRiser, defaultGain: 0.5 },
+  { id: "heartbeat", file: "heartbeat.wav", gen: heartbeat, defaultGain: 0.45 },
 ];
 
 for (const sound of SOUNDS) {

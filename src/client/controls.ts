@@ -1,3 +1,4 @@
+import { ICONS } from "./icons";
 import { showPrivacyModal } from "./permission-modal";
 
 export interface ControlHandlers {
@@ -27,7 +28,7 @@ export class Controls {
     this.root.setAttribute("aria-label", "Session controls");
     this.root.hidden = true;
 
-    this.pauseButton = button("Pause", "Pause listening");
+    this.pauseButton = button(ICONS.pause, "Pause listening");
     this.pauseButton.addEventListener("click", () => {
       this.setPaused(!this.paused);
       handlers.onPauseToggle(this.paused);
@@ -37,7 +38,7 @@ export class Controls {
     const volumeGroup = document.createElement("div");
     volumeGroup.className = "volume-group";
 
-    this.volumeButton = button("🔊", "Mute reaction sounds");
+    this.volumeButton = button(ICONS.volume, "Mute reaction sounds");
     this.volumeButton.setAttribute("aria-pressed", "false");
     this.volumeButton.addEventListener("click", () => {
       this.setMuted(!this.muted);
@@ -61,10 +62,10 @@ export class Controls {
 
     volumeGroup.append(this.volumeButton, pop);
 
-    const privacyButton = button("Privacy", "How privacy works");
+    const privacyButton = button(ICONS.shield, "How privacy works");
     privacyButton.addEventListener("click", () => showPrivacyModal());
 
-    const endButton = button("End", "End session and release microphone");
+    const endButton = button(ICONS.square, "End session and release microphone");
     endButton.classList.add("end");
     endButton.addEventListener("click", () => handlers.onEnd());
 
@@ -95,7 +96,7 @@ export class Controls {
 
   setPaused(paused: boolean): void {
     this.paused = paused;
-    this.pauseButton.textContent = paused ? "Resume" : "Pause";
+    this.pauseButton.innerHTML = paused ? ICONS.play : ICONS.pause;
     this.pauseButton.setAttribute(
       "aria-label",
       paused ? "Resume listening" : "Pause listening",
@@ -104,7 +105,7 @@ export class Controls {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    this.volumeButton.textContent = muted ? "🔇" : "🔊";
+    this.volumeButton.innerHTML = muted ? ICONS.volumeMuted : ICONS.volume;
     this.volumeButton.setAttribute("aria-pressed", String(muted));
     this.volumeButton.setAttribute(
       "aria-label",
@@ -113,10 +114,11 @@ export class Controls {
   }
 }
 
-function button(text: string, ariaLabel: string): HTMLButtonElement {
+function button(iconSvg: string, ariaLabel: string): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.textContent = text;
+  el.innerHTML = iconSvg;
   el.setAttribute("aria-label", ariaLabel);
+  el.title = ariaLabel;
   return el;
 }
