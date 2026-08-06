@@ -5,6 +5,8 @@ export interface ControlHandlers {
   onPauseToggle: (paused: boolean) => void;
   onMuteToggle: (muted: boolean) => void;
   onVolume: (volume: number) => void;
+  /** Toggle the activity popup; returns whether it is now visible. */
+  onActivityToggle: () => boolean;
   onEnd: () => void;
 }
 
@@ -62,6 +64,17 @@ export class Controls {
 
     volumeGroup.append(this.volumeButton, pop);
 
+    const activityButton = button(ICONS.activity, "Show reaction activity");
+    activityButton.setAttribute("aria-pressed", "false");
+    activityButton.addEventListener("click", () => {
+      const visible = handlers.onActivityToggle();
+      activityButton.setAttribute("aria-pressed", String(visible));
+      activityButton.setAttribute(
+        "aria-label",
+        visible ? "Hide reaction activity" : "Show reaction activity",
+      );
+    });
+
     const privacyButton = button(ICONS.shield, "How privacy works");
     privacyButton.addEventListener("click", () => showPrivacyModal());
 
@@ -69,7 +82,7 @@ export class Controls {
     endButton.classList.add("end");
     endButton.addEventListener("click", () => handlers.onEnd());
 
-    this.root.append(this.pauseButton, volumeGroup, privacyButton, endButton);
+    this.root.append(this.pauseButton, volumeGroup, activityButton, privacyButton, endButton);
     container.appendChild(this.root);
 
     // Tap anywhere reveals controls briefly on touch devices.

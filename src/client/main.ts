@@ -1,5 +1,6 @@
 import "./styles.css";
 import { StatusAnnouncer } from "./accessibility";
+import { ActivityFeed } from "./activity-feed";
 import { Controls } from "./controls";
 import { DebugPanel } from "./debug-panel";
 import { Iris } from "./iris";
@@ -17,6 +18,7 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const iris = new Iris(app);
 const status = new StatusAnnouncer(app);
 const sounds = new SoundEngine();
+const activity = new ActivityFeed(app);
 
 const micIndicator = document.createElement("div");
 micIndicator.className = "mic-indicator";
@@ -109,12 +111,15 @@ async function start(stream: MediaStream): Promise<void> {
     state: (msg) => {
       // The client owns fine-grained speech visuals; take server states that
       // represent pipeline phases.
+      if (msg.state === "evaluating") activity.beginEvaluation();
+      if (msg.state === "listening") activity.resolveQuiet();
       if (msg.state === "evaluating" || msg.state === "listening" || msg.state === "ended") {
         if (!localPaused || msg.state === "ended") setState(msg.state);
       }
       if (msg.state === "ended" && running) void teardown(false);
     },
     cue: (msg) => {
+      activity.resolveCue(msg.cue, msg.gain);
       const played = sounds.play(
         msg.cue,
         msg.gain,
@@ -192,6 +197,7 @@ async function start(stream: MediaStream): Promise<void> {
       status.notice(muted ? "Reactions muted." : "Reactions on.");
     },
     onVolume: (volume) => sounds.setVolume(volume),
+    onActivityToggle: () => activity.toggle(),
     onEnd: () => void teardown(true),
   });
   controls.setPaused(false);
@@ -218,6 +224,7 @@ async function teardown(userInitiated: boolean): Promise<void> {
   if (userInitiated) await session?.end();
   session = null;
   controls?.hide();
+  activity.hide();
   setMicIndicator("off");
   setState("ended");
   status.notice("Session ended. Tap the iris to start fresh.");

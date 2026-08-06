@@ -1,9 +1,13 @@
 /**
- * Microphone capture: level metering + voice-gated utterance recording.
+ * Microphone capture: continuous rolling windows with a level meter.
  *
- * A fresh MediaRecorder is started for every utterance so each emitted blob
- * is a complete, standalone container (chunked MediaRecorder output after
- * the first slice lacks headers, which breaks server-side decoding).
+ * Speech is freeform conversation, not turn-taking with a robot — so the
+ * recorder runs continuously in back-to-back ~3 s windows rather than
+ * waiting for utterance boundaries. A fresh MediaRecorder per window keeps
+ * every emitted blob a complete standalone container (chunked MediaRecorder
+ * output after the first slice lacks headers, which breaks server-side
+ * decoding). Voice activity detection only decides whether a finished
+ * window is worth sending; it never gates capture itself.
  */
 
 export interface UtteranceHandlers {
@@ -20,9 +24,10 @@ const MIME_CANDIDATES = [
   "audio/mp4",
 ];
 
-const SILENCE_HANGOVER_MS = 800;
-const MIN_UTTERANCE_MS = 500;
-const MAX_UTTERANCE_MS = 6000;
+/** Length of each rolling capture window. */
+const WINDOW_MS = 2800;
+/** Fraction of voiced frames a window needs before it is sent at all. */
+const MIN_SPEECH_RATIO = 0.05;
 
 export function pickMimeType(): string {
   const found = MIME_CANDIDATES.find((c) => MediaRecorder.isTypeSupported(c));
@@ -36,12 +41,13 @@ export class Microphone {
   private context: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private recorder: MediaRecorder | null = null;
-  private recorderChunks: Blob[] = [];
-  private utteranceStartedAt = 0;
+  private windowStartedAt = 0;
+  private windowTimer: number | undefined;
+  private voicedFrames = 0;
+  private totalFrames = 0;
   private noiseFloor = 0.008;
   private speechProb = 0;
   private speaking = false;
-  private lastVoiceAt = 0;
   private paused = false;
   private stopped = false;
 
@@ -71,11 +77,11 @@ export class Microphone {
     this.workletNode.port.onmessage = (event: MessageEvent<{ rms: number }>) => {
       this.onRms(event.data.rms);
     };
+    this.beginWindow();
   }
 
   private onRms(rms: number): void {
     if (this.stopped || this.paused) return;
-    const now = performance.now();
 
     // Track the noise floor slowly while nothing voice-like is happening.
     if (!this.speaking) {
@@ -84,63 +90,63 @@ export class Microphone {
     const threshold = Math.max(this.noiseFloor * 3, 0.012);
     const voiced = rms > threshold;
 
+    this.totalFrames += 1;
+    if (voiced) this.voicedFrames += 1;
+
     // Smooth speech probability for the visuals.
     this.speechProb = this.speechProb * 0.85 + (voiced ? 1 : 0) * 0.15;
     const level = Math.min(1, rms * 14);
     this.handlers.onLevel(level, this.speechProb);
 
-    if (voiced) this.lastVoiceAt = now;
-
-    if (!this.speaking && voiced && this.speechProb > 0.4) {
+    if (!this.speaking && this.speechProb > 0.4) {
       this.speaking = true;
       this.handlers.onSpeechStart();
-      this.beginUtterance();
-    } else if (this.speaking) {
-      const silentFor = now - this.lastVoiceAt;
-      const utteranceAge = now - this.utteranceStartedAt;
-      if (silentFor > SILENCE_HANGOVER_MS || utteranceAge > MAX_UTTERANCE_MS) {
-        this.speaking = false;
-        this.handlers.onSpeechEnd();
-        this.finishUtterance();
-      }
+    } else if (this.speaking && this.speechProb < 0.12) {
+      this.speaking = false;
+      this.handlers.onSpeechEnd();
     }
   }
 
-  private beginUtterance(): void {
-    if (!this.stream || this.recorder) return;
-    this.recorderChunks = [];
-    this.utteranceStartedAt = performance.now();
+  /** Start the next rolling capture window. */
+  private beginWindow(): void {
+    if (!this.stream || this.stopped || this.paused || this.recorder) return;
+    this.voicedFrames = 0;
+    this.totalFrames = 0;
+    this.windowStartedAt = performance.now();
+    let recorder: MediaRecorder;
     try {
-      this.recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
+      recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
     } catch {
       return;
     }
-    this.recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) this.recorderChunks.push(event.data);
+    this.recorder = recorder;
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
     };
-    this.recorder.onstop = () => {
-      const durationMs = Math.round(performance.now() - this.utteranceStartedAt);
-      const chunks = this.recorderChunks;
-      this.recorderChunks = [];
-      this.recorder = null;
-      if (this.stopped || this.paused) return;
-      if (durationMs < MIN_UTTERANCE_MS || chunks.length === 0) return;
-      const blob = new Blob(chunks, { type: this.mimeType });
-      this.handlers.onUtterance(blob, durationMs, this.mimeType);
+    recorder.onstop = () => {
+      const durationMs = Math.round(performance.now() - this.windowStartedAt);
+      const speechRatio = this.totalFrames > 0 ? this.voicedFrames / this.totalFrames : 0;
+      if (this.recorder === recorder) this.recorder = null;
+      if (!this.stopped) {
+        // Send only windows that contained some speech; silence stays local.
+        if (!this.paused && chunks.length > 0 && durationMs > 400 && speechRatio >= MIN_SPEECH_RATIO) {
+          this.handlers.onUtterance(new Blob(chunks, { type: this.mimeType }), durationMs, this.mimeType);
+        }
+        this.beginWindow(); // roll straight into the next window
+      }
     };
-    this.recorder.start();
-  }
-
-  private finishUtterance(): void {
-    if (this.recorder && this.recorder.state !== "inactive") {
-      this.recorder.stop();
-    }
+    recorder.start();
+    this.windowTimer = window.setTimeout(() => {
+      if (recorder.state !== "inactive") recorder.stop();
+    }, WINDOW_MS);
   }
 
   pause(): void {
     this.paused = true;
     this.speaking = false;
     this.speechProb = 0;
+    window.clearTimeout(this.windowTimer);
     if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop();
     this.handlers.onLevel(0, 0);
     void this.context?.suspend();
@@ -149,11 +155,13 @@ export class Microphone {
   resume(): void {
     this.paused = false;
     void this.context?.resume();
+    this.beginWindow();
   }
 
   /** Stop everything and release the microphone. */
   stop(): void {
     this.stopped = true;
+    window.clearTimeout(this.windowTimer);
     if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop();
     this.recorder = null;
     this.workletNode?.disconnect();
