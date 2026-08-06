@@ -123,7 +123,7 @@ export class SessionClient {
     });
   }
 
-  async sendAudio(blob: Blob, durationMs: number, mimeType: string): Promise<void> {
+  sendAudio(bytes: ArrayBuffer, durationMs: number, mimeType: string, speech = true): void {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     this.sendJson({
       v: 1,
@@ -133,8 +133,9 @@ export class SessionClient {
       seq: this.seq++,
       mime: mimeType,
       duration_ms: durationMs,
+      speech,
     });
-    this.socket.send(await blob.arrayBuffer());
+    this.socket.send(bytes);
   }
 
   /** End the session: WS stop + best-effort DELETE for immediate cleanup. */

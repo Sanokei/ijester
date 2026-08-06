@@ -19,6 +19,7 @@ import {
 } from "../providers/factory";
 import type { ReactionInput, ReactionModel } from "../providers/reaction-model";
 import type { TranscriptionProvider } from "../providers/transcription";
+import { PcmAggregator } from "./audio-aggregator";
 import { ConversationWindow } from "./conversation-window";
 import { LIMITS, serverMessage } from "./protocol";
 import {
@@ -48,6 +49,7 @@ interface PendingAudioMeta {
   seq: number;
   mime: string;
   durationMs: number;
+  speech: boolean;
   receivedAt: number;
 }
 
@@ -72,6 +74,7 @@ export class IJesterSession extends DurableObject<Env> {
   private bytesThisMinute = 0;
   private minuteWindowStart = Date.now();
   private pendingMeta: PendingAudioMeta | null = null;
+  private pcm = new PcmAggregator();
   private lastEvalAt = 0;
   private evalEpoch = 0;
   private inflightEval: AbortController | null = null;
@@ -291,6 +294,7 @@ export class IJesterSession extends DurableObject<Env> {
           seq: parsed.seq,
           mime: parsed.mime,
           durationMs: parsed.duration_ms,
+          speech: parsed.speech !== false,
           receivedAt: Date.now(),
         };
         break;
@@ -298,6 +302,7 @@ export class IJesterSession extends DurableObject<Env> {
       case "pause": {
         this.paused = true;
         this.pendingMeta = null;
+        this.pcm.reset();
         this.inflightEval?.abort();
         this.phase = transition(this.phase, "paused");
         this.broadcast(serverMessage("state", { state: "paused" }));
@@ -351,17 +356,47 @@ export class IJesterSession extends DurableObject<Env> {
     if (meta.seq <= this.lastSequence) return; // duplicate or out-of-order
     this.lastSequence = meta.seq;
 
-    const startedAtMs = Date.now() - meta.durationMs;
+    // Streaming path: raw 16 kHz PCM packets roll into a server-side
+    // window that flushes at conversational pauses or a full window.
+    if (meta.mime.startsWith("audio/pcm")) {
+      this.pcm.add(new Uint8Array(bytes), meta.durationMs, meta.speech);
+      if (!this.pcm.shouldFlush()) return;
+      const flushed = this.pcm.flush();
+      if (!flushed) return;
+      await this.transcribeAndReact(
+        ws,
+        flushed.wav,
+        "audio/wav",
+        meta.seq,
+        flushed.durationMs,
+        flushed.startedAtMs,
+      );
+      return;
+    }
+
+    // Legacy path: a self-contained encoded blob per utterance.
+    await this.transcribeAndReact(
+      ws,
+      bytes,
+      meta.mime,
+      meta.seq,
+      meta.durationMs,
+      Date.now() - meta.durationMs,
+    );
+  }
+
+  private async transcribeAndReact(
+    ws: WebSocket,
+    bytes: ArrayBuffer,
+    mimeType: string,
+    sequence: number,
+    durationMs: number,
+    startedAtMs: number,
+  ): Promise<void> {
     let segments: TranscriptSegment[] = [];
     try {
       segments = await this.stt.transcribe(
-        {
-          bytes,
-          mimeType: meta.mime,
-          sequence: meta.seq,
-          startedAtMs,
-          durationMs: meta.durationMs,
-        },
+        { bytes, mimeType, sequence, startedAtMs, durationMs },
         AbortSignal.timeout(LIMITS.STT_TIMEOUT_MS),
       );
     } catch (err) {
@@ -439,6 +474,14 @@ export class IJesterSession extends DurableObject<Env> {
       allowed: decision.allowed,
       reasons: decision.reasons,
     });
+    if (this.debug) {
+      this.broadcast(
+        serverMessage("notice", {
+          code: "proposal",
+          message: `${proposal.cue} conf=${proposal.confidence} → ${decision.allowed ? "play" : decision.reasons.join(",")}`,
+        }),
+      );
+    }
 
     if (!decision.allowed) {
       this.phase = transition(this.phase, "listening");

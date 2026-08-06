@@ -110,6 +110,8 @@ export const ClientAudioMetaSchema = z.object({
   seq: z.int().min(0),
   mime: z.string().max(80),
   duration_ms: z.number().min(1).max(30_000),
+  /** Client VAD verdict for this packet (streaming PCM path). */
+  speech: z.boolean().optional(),
 });
 
 export const ClientControlSchema = z.object({

@@ -166,6 +166,61 @@ describe("worker routes", () => {
     await stopSession(socket);
   });
 
+  it("streamed PCM aggregates at pauses and can produce a cue", async () => {
+    const session = await createSession();
+    const response = await SELF.fetch(
+      `${ORIGIN}${session.websocket_url}?token=${encodeURIComponent(session.session_token)}`,
+      { headers: { Upgrade: "websocket", Origin: ORIGIN } },
+    );
+    const socket = response.webSocket!;
+    socket.accept();
+    const received: Record<string, unknown>[] = [];
+    socket.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string) as Record<string, unknown>);
+    });
+
+    socket.send(
+      JSON.stringify({
+        v: 1,
+        type: "hello",
+        event_id: "evt_hello",
+        sent_at: Date.now(),
+        capabilities: { mime: "audio/pcm;rate=16000" },
+      }),
+    );
+
+    // Several rounds of ~1.3s speech + ~0.9s pause: each pause flushes a
+    // window through mock STT; the heuristic reacts to a fixture line.
+    let seq = 0;
+    const pcmPacket = new ArrayBuffer((16000 * 2 * 256) / 1000);
+    for (let round = 0; round < 5; round++) {
+      for (let i = 0; i < 5; i++) {
+        socket.send(
+          JSON.stringify({
+            v: 1, type: "audio_meta", event_id: `m${seq}`, sent_at: Date.now(),
+            seq: seq++, mime: "audio/pcm;rate=16000", duration_ms: 256, speech: true,
+          }),
+        );
+        socket.send(pcmPacket);
+      }
+      for (let i = 0; i < 4; i++) {
+        socket.send(
+          JSON.stringify({
+            v: 1, type: "audio_meta", event_id: `m${seq}`, sent_at: Date.now(),
+            seq: seq++, mime: "audio/pcm;rate=16000", duration_ms: 256, speech: false,
+          }),
+        );
+        socket.send(pcmPacket);
+      }
+      await new Promise((r) => setTimeout(r, 60));
+    }
+    await new Promise((r) => setTimeout(r, 300));
+
+    const cues = received.filter((m) => m["type"] === "cue");
+    expect(cues.length).toBeGreaterThanOrEqual(1);
+    await stopSession(socket);
+  });
+
   it("stop message ends the session and deletes state", async () => {
     const session = await createSession();
     const response = await SELF.fetch(

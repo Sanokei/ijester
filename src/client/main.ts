@@ -4,7 +4,7 @@ import { ActivityFeed } from "./activity-feed";
 import { Controls } from "./controls";
 import { DebugPanel } from "./debug-panel";
 import { Iris } from "./iris";
-import { Microphone, pickMimeType } from "./microphone";
+import { Microphone, PCM_MIME } from "./microphone";
 import { showPermissionModal } from "./permission-modal";
 import { SessionClient } from "./session-socket";
 import { SoundEngine } from "./sound-engine";
@@ -160,7 +160,7 @@ async function start(stream: MediaStream): Promise<void> {
   });
 
   await session.create();
-  await session.connect({ mime: pickMimeType(), reduced_motion: reducedMotion, debug: debugMode });
+  await session.connect({ mime: PCM_MIME, reduced_motion: reducedMotion, debug: debugMode });
 
   microphone = new Microphone({
     onLevel: (level, speechProb) => iris.setMicLevel(level, speechProb),
@@ -170,8 +170,8 @@ async function start(stream: MediaStream): Promise<void> {
     onSpeechEnd: () => {
       if (!localPaused && iris.getState() === "speech") setState("listening");
     },
-    onUtterance: (blob, durationMs, mimeType) => {
-      void session?.sendAudio(blob, durationMs, mimeType);
+    onAudioPacket: (pcm, durationMs, speech) => {
+      session?.sendAudio(pcm, durationMs, PCM_MIME, speech);
     },
   });
   await microphone.start(stream);
@@ -246,3 +246,59 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("pagehide", () => {
   microphone?.stop();
 });
+
+// Lab hooks (?debug=1 only): drive the iris and pipeline without a real
+// microphone. Never active for normal visitors.
+if (debugMode) {
+  (window as unknown as Record<string, unknown>)["__ijester"] = {
+    iris,
+    sounds,
+    setState: (s: IrisState) => setState(s),
+    feedLevel: (level: number, speechProb: number) => iris.setMicLevel(level, speechProb),
+    cueImpact: () => iris.cueImpact(),
+    /** Start a session without microphone capture; returns the client. */
+    startNoMic: async () => {
+      await sounds.init();
+      const client = new SessionClient({
+        ready: (m) => debugPanel?.append(`ready: ${JSON.stringify(m.config)}`),
+        state: (m) => {
+          if (m.state === "evaluating") activity.beginEvaluation();
+          if (m.state === "listening") activity.resolveQuiet();
+          setState(m.state);
+        },
+        cue: (m) => {
+          activity.resolveCue(m.cue, m.gain);
+          sounds.play(m.cue, m.gain, m.delay_ms, () => iris.cueImpact());
+          debugPanel?.append(`cue: ${m.cue}`);
+        },
+        transcript_debug: (m) => debugPanel?.transcript(m.segments),
+        notice: (m) => debugPanel?.append(`notice: ${m.code}`),
+        error: (m) => debugPanel?.append(`error: ${m.code}`),
+      });
+      await client.create();
+      await client.connect({ mime: PCM_MIME, reduced_motion: false, debug: true });
+      session = client;
+      controls ??= new Controls(app, sounds.getVolume(), {
+        onPauseToggle: () => {},
+        onMuteToggle: (m) => sounds.setMuted(m),
+        onVolume: (v) => sounds.setVolume(v),
+        onActivityToggle: () => activity.toggle(),
+        onEnd: () => void client.end(),
+      });
+      controls.show();
+      if (!debugPanel) debugPanel = new DebugPanel(app, SOUND_CATALOG.map((s) => s.id), sounds);
+      return client;
+    },
+    /** Stream N ms of synthetic PCM marked as speech, then silence. */
+    streamTestSpeech: (speechMs = 1200, silenceMs = 900) => {
+      if (!session) return;
+      const packet = (ms: number) => new ArrayBuffer((16000 * 2 * ms) / 1000);
+      for (let sent = 0; sent < speechMs; sent += 256) {
+        session.sendAudio(packet(256), 256, PCM_MIME, true);
+      }
+      for (let sent = 0; sent < silenceMs; sent += 256) {
+        session.sendAudio(packet(256), 256, PCM_MIME, false);
+      }
+    },
+  };
+}

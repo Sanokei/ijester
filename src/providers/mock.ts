@@ -56,10 +56,13 @@ const HEURISTICS: {
   confidence: number;
   pattern: RegExp;
 }[] = [
-  { cue: "aww", reason: "wholesome", confidence: 0.9, pattern: /\b(sweetest|adorable|puppy|kitten|so cute|aww+|wholesome|proud of you)\b/i },
-  { cue: "gasp", reason: "shock", confidence: 0.88, pattern: /\b(no way|you did not|i can'?t believe|what happened|seriously\?)\b/i },
-  { cue: "ooo", reason: "callout", confidence: 0.88, pattern: /\b(spicy|scandal|caught (him|her|them)|flirt|secretly|drama)\b/i },
-  { cue: "laugh_light", reason: "banter", confidence: 0.85, pattern: /\b(nice haircut|i was \w+ for|fully checked in|lol|that's ridiculous)\b/i },
+  { cue: "aww", reason: "wholesome", confidence: 0.9, pattern: /\b(sweetest|adorable|puppy|kitten|so cute|aww+|wholesome|proud of you|that's so sweet)\b/i },
+  { cue: "gasp", reason: "shock", confidence: 0.88, pattern: /\b(no way|you did not|i can'?t believe|what happened|seriously\?|oh my god|are you serious|you're kidding)\b/i },
+  { cue: "ooo", reason: "callout", confidence: 0.88, pattern: /\b(spicy|scandal|caught (him|her|them)|flirt|secretly|drama|plot twist)\b/i },
+  { cue: "laugh_light", reason: "banter", confidence: 0.85, pattern: /\b(nice haircut|i was \w+ for|fully checked in|lol|that's ridiculous|(ha){2,}|hilarious|so funny)\b/i },
+  { cue: "tada", reason: "achievement", confidence: 0.87, pattern: /\b(i got the job|we won|i passed|nailed it|it's official)\b/i },
+  { cue: "applause", reason: "good_news", confidence: 0.87, pattern: /\b(congratulations|congrats|well done|so proud of)\b/i },
+  { cue: "drum_sting", reason: "pun", confidence: 0.86, pattern: /\b(get it\?|ba dum|pun intended)\b/i },
 ];
 
 export class HeuristicReactionModel implements ReactionModel {

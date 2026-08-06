@@ -175,6 +175,13 @@ body.controls-visible .controls {
   opacity: 1;
 }
 
+/* Touch devices have no hover: keep the bar visible whenever it exists. */
+@media (hover: none) {
+  .controls {
+    opacity: 1;
+  }
+}
+
 .controls[hidden] {
   display: none;
 }

@@ -179,144 +179,203 @@ export class Iris {
     const col = (h: number, s: number, l: number, a = 1) =>
       `hsl(${h} ${Math.round(s * desat)}% ${l}% / ${a})`;
 
-    const pupilR = R * (0.66 - this.open * 0.22 + this.pulse * 0.05 - this.impact * 0.08);
+    const pupilR = R * (0.52 - this.open * 0.16 + this.pulse * 0.04 - this.impact * 0.06);
     const ringOuter = R * (0.9 + this.level * 0.02 + this.impact * 0.04);
-    const ringInner = pupilR + R * 0.015;
+    const ringInner = pupilR + R * 0.012;
+    const hash = (i: number) => (((i * 2654435761) >>> 0) % 1000) / 1000;
 
     ctx.clearRect(0, 0, w, w);
 
-    // Ambient glow.
+    // Ambient warm glow.
     const glow = ctx.createRadialGradient(c, c, ringOuter * 0.7, c, c, R * 1.02);
-    glow.addColorStop(0, col(30, 90, 60, 0.14 + this.level * 0.15 + this.impact * 0.3));
+    glow.addColorStop(0, col(30, 90, 60, 0.12 + this.level * 0.14 + this.impact * 0.3));
     glow.addColorStop(1, col(30, 90, 60, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(c, c, R * 1.02, 0, Math.PI * 2);
     ctx.fill();
 
-    // Uniform orange iris ring.
-    const ring = ctx.createRadialGradient(c, c, ringInner, c, c, ringOuter);
-    ring.addColorStop(0, col(30, 62, 62));
-    ring.addColorStop(0.55, col(26, 70, 55));
-    ring.addColorStop(1, col(20, 74, 46));
+    // Iris ring: amber body, lighter near the pupil, deepening outward.
+    const ring = ctx.createRadialGradient(c, c, pupilR * 0.9, c, c, ringOuter);
+    ring.addColorStop(0, col(33, 58, 68));
+    ring.addColorStop(0.35, col(29, 66, 58));
+    ring.addColorStop(0.75, col(24, 70, 48));
+    ring.addColorStop(1, col(17, 66, 36));
     ctx.fillStyle = ring;
     ctx.beginPath();
     ctx.arc(c, c, ringOuter, 0, Math.PI * 2);
     ctx.fill();
 
-    // Faint static fibers for texture.
-    ctx.save();
-    ctx.translate(c, c);
-    ctx.strokeStyle = col(18, 60, 38, 0.14);
-    ctx.lineWidth = Math.max(1, w * 0.0016);
-    for (let i = 0; i < 72; i++) {
-      const a = (i / 72) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * ringInner, Math.sin(a) * ringInner);
-      ctx.lineTo(Math.cos(a) * ringOuter * 0.985, Math.sin(a) * ringOuter * 0.985);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // Volume waveform: brighter orange spikes inside the ring, newest at
-    // the rotating head, wrapping around the circle.
-    const ringWidth = ringOuter - ringInner;
+    // Organic fibers: two counter-drifting layers with varied lengths.
     const spinRad = (this.spin * Math.PI) / 180;
     ctx.save();
     ctx.translate(c, c);
-    ctx.lineCap = "round";
-    ctx.lineWidth = Math.max(1.5, (Math.PI * (ringInner + ringWidth * 0.4) * 2) / WAVE_BINS * 0.45);
-    for (let k = 0; k < WAVE_BINS; k++) {
-      const amp = this.wave[(this.waveHead - k + WAVE_BINS) % WAVE_BINS]! * Math.min(1, this.open + 0.15);
-      if (amp < 0.015) continue;
-      const a = spinRad + (k / WAVE_BINS) * Math.PI * 2;
-      const base = ringInner + ringWidth * 0.08;
-      const len = ringWidth * 0.8 * amp + this.impact * ringWidth * 0.1;
-      ctx.strokeStyle = col(35, 100, 62, 0.3 + amp * 0.65);
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * base, Math.sin(a) * base);
-      ctx.lineTo(Math.cos(a) * (base + len), Math.sin(a) * (base + len));
-      ctx.stroke();
+    for (const [count, drift, alphaBase] of [
+      [96, spinRad * 0.12, 0.1],
+      [64, -spinRad * 0.07, 0.07],
+    ] as const) {
+      ctx.lineWidth = Math.max(1, w * 0.0014);
+      for (let i = 0; i < count; i++) {
+        const a = drift + (i / count) * Math.PI * 2;
+        const jitter = hash(i * 7 + count);
+        const start = ringInner + (ringOuter - ringInner) * 0.06 * jitter;
+        const end = ringOuter * (0.9 + jitter * 0.07);
+        ctx.strokeStyle = col(20 + jitter * 12, 62, 34, alphaBase + jitter * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * start, Math.sin(a) * start);
+        ctx.lineTo(Math.cos(a) * end, Math.sin(a) * end);
+        ctx.stroke();
+      }
     }
     ctx.restore();
 
-    // Ring edge definition.
-    ctx.strokeStyle = col(18, 70, 40, 0.35);
-    ctx.lineWidth = Math.max(1, w * 0.003);
+    // Volume waveform inside the ring: a soft wide glow pass under a
+    // bright crisp pass, newest audio at the rotating head.
+    const ringWidth = ringOuter - ringInner;
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.lineCap = "round";
+    for (const [widthScale, alphaScale, lightness] of [
+      [1.9, 0.28, 66],
+      [0.75, 1, 62],
+    ] as const) {
+      ctx.lineWidth = Math.max(1.2, ((Math.PI * (ringInner + ringWidth * 0.4) * 2) / WAVE_BINS) * 0.45 * widthScale);
+      for (let k = 0; k < WAVE_BINS; k++) {
+        const amp = this.wave[(this.waveHead - k + WAVE_BINS) % WAVE_BINS]! * Math.min(1, this.open + 0.15);
+        if (amp < 0.02) continue;
+        const a = spinRad + (k / WAVE_BINS) * Math.PI * 2;
+        const base = ringInner + ringWidth * 0.06;
+        const len = ringWidth * 0.78 * amp + this.impact * ringWidth * 0.1;
+        ctx.strokeStyle = col(36, 100, lightness, (0.3 + amp * 0.6) * alphaScale);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * base, Math.sin(a) * base);
+        ctx.lineTo(Math.cos(a) * (base + len), Math.sin(a) * (base + len));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    // Top-light and lower shade: gives the disc a gentle dome.
+    ctx.save();
     ctx.beginPath();
     ctx.arc(c, c, ringOuter, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.clip();
+    const domeLight = ctx.createRadialGradient(c, c - R * 0.55, 0, c, c - R * 0.55, R * 1.1);
+    domeLight.addColorStop(0, "hsl(40 100% 96% / 0.16)");
+    domeLight.addColorStop(0.5, "hsl(40 100% 96% / 0)");
+    ctx.fillStyle = domeLight;
+    ctx.fillRect(0, 0, w, w);
+    const domeShade = ctx.createRadialGradient(c, c + R * 0.7, R * 0.2, c, c + R * 0.7, R * 1.1);
+    domeShade.addColorStop(0, "hsl(15 60% 12% / 0.14)");
+    domeShade.addColorStop(1, "hsl(15 60% 12% / 0)");
+    ctx.fillStyle = domeShade;
+    ctx.fillRect(0, 0, w, w);
+    ctx.restore();
+
+    // Outer rim vignette instead of a hard stroke.
+    const rim = ctx.createRadialGradient(c, c, ringOuter * 0.82, c, c, ringOuter);
+    rim.addColorStop(0, col(16, 70, 26, 0));
+    rim.addColorStop(1, col(16, 70, 22, 0.5));
+    ctx.fillStyle = rim;
+    ctx.beginPath();
+    ctx.arc(c, c, ringOuter, 0, Math.PI * 2);
+    ctx.fill();
 
     // ---------------------------------------------------------- pupil
 
+    // Limbal band: a soft dark transition from iris into pupil.
+    const limbal = ctx.createRadialGradient(c, c, pupilR * 0.86, c, c, pupilR * 1.12);
+    limbal.addColorStop(0, col(226, 60, 10, 0));
+    limbal.addColorStop(0.5, col(226, 60, 10, 0.55));
+    limbal.addColorStop(1, col(226, 60, 10, 0));
+    ctx.fillStyle = limbal;
+    ctx.beginPath();
+    ctx.arc(c, c, pupilR * 1.12, 0, Math.PI * 2);
+    ctx.fill();
+
     // Body: deep blue with an off-center light source.
     const pupil = ctx.createRadialGradient(
-      c - pupilR * 0.25,
       c - pupilR * 0.3,
-      pupilR * 0.1,
+      c - pupilR * 0.34,
+      pupilR * 0.08,
       c,
       c,
       pupilR,
     );
-    pupil.addColorStop(0, col(214, 58, 44 + this.pulse * 8));
-    pupil.addColorStop(0.45, col(219, 62, 30));
-    pupil.addColorStop(0.85, col(224, 66, 18));
-    pupil.addColorStop(1, col(228, 70, 12));
+    pupil.addColorStop(0, col(211, 64, 52 + this.pulse * 8));
+    pupil.addColorStop(0.35, col(216, 68, 36));
+    pupil.addColorStop(0.7, col(222, 70, 22));
+    pupil.addColorStop(1, col(227, 74, 11));
     ctx.fillStyle = pupil;
     ctx.beginPath();
     ctx.arc(c, c, pupilR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Radial striations, slowly counter-rotating.
+    // Blue iris texture: varied radial filaments, slowly counter-rotating.
     ctx.save();
     ctx.translate(c, c);
     ctx.rotate(-spinRad * 0.35);
     ctx.lineWidth = Math.max(1, w * 0.0014);
-    for (let i = 0; i < 60; i++) {
-      const a = (i / 60) * Math.PI * 2;
-      const inner = pupilR * (0.3 + (i % 3) * 0.08);
-      ctx.strokeStyle = col(213, 55, 60, 0.06 + (i % 4 === 0 ? 0.05 : 0));
+    for (let i = 0; i < 84; i++) {
+      const a = (i / 84) * Math.PI * 2;
+      const jitter = hash(i * 13 + 5);
+      const inner = pupilR * (0.22 + jitter * 0.24);
+      const outer = pupilR * (0.8 + jitter * 0.16);
+      ctx.strokeStyle = col(206 + jitter * 22, 62, 58, 0.05 + jitter * 0.11);
       ctx.beginPath();
       ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
-      ctx.lineTo(Math.cos(a) * pupilR * 0.94, Math.sin(a) * pupilR * 0.94);
+      ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
       ctx.stroke();
     }
     ctx.restore();
 
-    // Concentric detail rings.
+    // Concentric ripples.
     for (const [r, alpha] of [
-      [0.35, 0.1],
-      [0.62, 0.07],
-      [0.85, 0.09],
+      [0.3, 0.12],
+      [0.52, 0.08],
+      [0.72, 0.09],
+      [0.9, 0.12],
     ] as const) {
-      ctx.strokeStyle = col(212, 60, 62, alpha);
-      ctx.lineWidth = Math.max(1, w * 0.0018);
+      ctx.strokeStyle = col(210, 62, 60, alpha);
+      ctx.lineWidth = Math.max(1, w * 0.0016);
       ctx.beginPath();
       ctx.arc(c, c, pupilR * r, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Limbal ring: bright blue rim where pupil meets the orange iris.
-    ctx.strokeStyle = col(212, 75, 55, 0.5 + this.impact * 0.3);
-    ctx.lineWidth = Math.max(1.5, w * 0.005);
+    // Inner core: a darker center that tightens while evaluating.
+    const coreR = pupilR * (0.34 + this.pulse * 0.06);
+    const core = ctx.createRadialGradient(c, c, 0, c, c, coreR);
+    core.addColorStop(0, col(228, 70, 7));
+    core.addColorStop(0.55, col(228, 70, 8, 0.85));
+    core.addColorStop(0.85, col(228, 70, 10, 0.4));
+    core.addColorStop(1, col(228, 70, 10, 0));
+    ctx.fillStyle = core;
     ctx.beginPath();
-    ctx.arc(c, c, pupilR * 0.99, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.arc(c, c, coreR, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Specular highlight.
-    const spec = ctx.createRadialGradient(
-      c - pupilR * 0.32,
-      c - pupilR * 0.38,
-      0,
-      c - pupilR * 0.32,
-      c - pupilR * 0.38,
-      pupilR * 0.32,
+    // Specular highlights: one crisp key light, one faint counter-glint.
+    const key = ctx.createRadialGradient(
+      c - pupilR * 0.38, c - pupilR * 0.44, 0,
+      c - pupilR * 0.38, c - pupilR * 0.44, pupilR * 0.2,
     );
-    spec.addColorStop(0, `hsl(0 0% 100% / ${0.5 + this.impact * 0.3})`);
-    spec.addColorStop(1, "hsl(0 0% 100% / 0)");
-    ctx.fillStyle = spec;
+    key.addColorStop(0, `hsl(0 0% 100% / ${0.75 + this.impact * 0.2})`);
+    key.addColorStop(0.35, "hsl(0 0% 100% / 0.28)");
+    key.addColorStop(1, "hsl(0 0% 100% / 0)");
+    ctx.fillStyle = key;
     ctx.beginPath();
-    ctx.arc(c - pupilR * 0.32, c - pupilR * 0.38, pupilR * 0.32, 0, Math.PI * 2);
+    ctx.arc(c - pupilR * 0.38, c - pupilR * 0.44, pupilR * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    const glint = ctx.createRadialGradient(
+      c + pupilR * 0.4, c + pupilR * 0.42, 0,
+      c + pupilR * 0.4, c + pupilR * 0.42, pupilR * 0.14,
+    );
+    glint.addColorStop(0, "hsl(205 80% 80% / 0.22)");
+    glint.addColorStop(1, "hsl(205 80% 80% / 0)");
+    ctx.fillStyle = glint;
+    ctx.beginPath();
+    ctx.arc(c + pupilR * 0.4, c + pupilR * 0.42, pupilR * 0.14, 0, Math.PI * 2);
     ctx.fill();
   }
 }
