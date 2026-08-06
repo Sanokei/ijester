@@ -47,6 +47,7 @@
   "vars": {
     "DEEPSEEK_BASE_URL": "https://api.deepseek.com",
     "DEEPSEEK_MODEL": "deepseek-v4-flash",
+    "WORKERS_AI_REACTION_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
     "TRANSCRIPTION_PROVIDER": "workers-ai",
     "SESSION_TTL_SECONDS": "1800",
     "MAX_SESSION_SECONDS": "14400",

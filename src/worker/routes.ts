@@ -109,7 +109,7 @@ export function health(env: Env): Response {
   return Response.json({
     ok: true,
     manifest: SOUND_MANIFEST_VERSION,
-    classifier: env.DEEPSEEK_API_KEY ? "deepseek" : "heuristic",
+    classifier: env.DEEPSEEK_API_KEY ? "deepseek" : env.AI ? "workers-ai" : "heuristic",
     transcription: env.AI && env.TRANSCRIPTION_PROVIDER === "workers-ai" ? "workers-ai" : "mock",
   });
 }

@@ -78,6 +78,8 @@ export class IJesterSession extends DurableObject<Env> {
   private lastEvalAt = 0;
   private evalEpoch = 0;
   private inflightEval: AbortController | null = null;
+  /** Wall-clock time a deferred evaluation is owed, 0 when none. */
+  private evalDueAt = 0;
   private mode: ReactionMode;
   private stt: TranscriptionProvider;
   private model: ReactionModel;
@@ -212,19 +214,37 @@ export class IJesterSession extends DurableObject<Env> {
       await this.shutdown("Session expired");
       return;
     }
-    await this.scheduleHousekeeping();
+    // Deferred evaluation rounds ride the same alarm; maybeEvaluate gates
+    // itself (interval, pause, empty window), so a spurious fire is a no-op.
+    this.evalDueAt = 0;
+    await this.maybeEvaluate();
+    if (this.phase !== "ended") await this.scheduleHousekeeping();
   }
 
   private async scheduleHousekeeping(): Promise<void> {
     const nextTtl = this.lastActivityAt + this.ttlMs;
     const hardStop = this.createdAt + this.maxSessionMs;
-    await this.ctx.storage.setAlarm(Math.min(nextTtl, hardStop));
+    let next = Math.min(nextTtl, hardStop);
+    if (this.evalDueAt !== 0) next = Math.min(next, this.evalDueAt);
+    await this.ctx.storage.setAlarm(next);
+  }
+
+  /**
+   * Ask the alarm to run one evaluation round shortly. In-memory timers
+   * do not survive hibernation for WebSocket-hibernating objects; the
+   * storage alarm is the only wake-up that is guaranteed to fire.
+   */
+  private async scheduleEvaluation(delayMs: number): Promise<void> {
+    const due = Date.now() + delayMs;
+    if (this.evalDueAt === 0 || due < this.evalDueAt) this.evalDueAt = due;
+    await this.scheduleHousekeeping();
   }
 
   private async shutdown(reason: string): Promise<void> {
     if (this.phase === "ended") return;
     this.phase = "ended";
     this.inflightEval?.abort();
+    this.evalDueAt = 0;
     this.log("info", "session_end", {
       cues: this.cueCount,
       modelCalls: this.modelCalls,
@@ -304,6 +324,7 @@ export class IJesterSession extends DurableObject<Env> {
         this.pendingMeta = null;
         this.pcm.reset();
         this.inflightEval?.abort();
+        this.evalDueAt = 0;
         this.phase = transition(this.phase, "paused");
         this.broadcast(serverMessage("state", { state: "paused" }));
         await this.persist();
@@ -430,7 +451,14 @@ export class IJesterSession extends DurableObject<Env> {
   private async maybeEvaluate(): Promise<void> {
     const now = Date.now();
     if (this.paused || this.muted || this.phase === "ended") return;
-    if (now - this.lastEvalAt < this.minEvalIntervalMs) return;
+    if (now - this.lastEvalAt < this.minEvalIntervalMs) {
+      // Transcripts often land mid-cooldown (parallel STT calls can even
+      // finish out of order, punchline before setup). Dropping this round
+      // outright would mean the completed joke never gets judged — defer
+      // one re-evaluation to just past the interval instead.
+      await this.scheduleEvaluation(this.minEvalIntervalMs - (now - this.lastEvalAt) + 50);
+      return;
+    }
     if (this.modelCalls >= LIMITS.MAX_MODEL_CALLS_PER_SESSION) return;
 
     const immediate = this.window.immediate(now);

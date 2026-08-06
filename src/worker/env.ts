@@ -11,6 +11,8 @@ export interface Env {
 
   DEEPSEEK_BASE_URL: string;
   DEEPSEEK_MODEL: string;
+  /** Workers AI model id for the fallback reaction classifier. */
+  WORKERS_AI_REACTION_MODEL?: string;
   TRANSCRIPTION_PROVIDER: string;
   SESSION_TTL_SECONDS: string;
   MAX_SESSION_SECONDS: string;

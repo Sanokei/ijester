@@ -12,7 +12,7 @@ export interface ReactionInput {
 }
 
 export interface ReactionModel {
-  readonly name: "deepseek" | "heuristic";
+  readonly name: "deepseek" | "workers-ai" | "heuristic";
   classify(input: ReactionInput, signal: AbortSignal): Promise<ReactionProposal>;
 }
 
@@ -36,6 +36,7 @@ export function buildSystemPolicy(catalog: Pick<SoundDefinition, "id" | "descrip
     '- "none": no reaction (default).',
     "Respond with EXACTLY one JSON object and nothing else, matching:",
     '{"cue": string, "confidence": number 0..1, "intensity": integer 0..3, "delay_ms": integer 0..1200, "reason_code": lowercase_snake_slug, "target_segment_id": string}',
+    "target_segment_id must be copied exactly from the segment_id of the transcript segment you are reacting to.",
     "confidence is your honest probability that most listeners would find the cue delightful and well-timed. Below 0.8, return \"none\".",
   ].join("\n");
 }

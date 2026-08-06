@@ -19,9 +19,11 @@ interface DeepSeekOptions {
 
 /**
  * DeepSeek V4 Flash through the OpenAI-compatible Chat Completions endpoint.
- * Non-thinking mode + JSON output for latency. Any failure — timeout, bad
- * status, malformed JSON, schema violation — resolves to a `none` proposal;
- * the caller never needs a try/catch to stay silent.
+ * Non-thinking mode + JSON output for latency. A model that answers gets
+ * parsed leniently (`none` on malformed output), but transport-level failure
+ * — timeout, bad status, network error — THROWS so the factory's fallback
+ * wrapper can hand the round to another classifier instead of the product
+ * going silently mute. A supersede abort still resolves quietly to `none`.
  */
 export class DeepSeekReactionModel implements ReactionModel {
   readonly name = "deepseek";
@@ -32,8 +34,9 @@ export class DeepSeekReactionModel implements ReactionModel {
   }
 
   async classify(input: ReactionInput, signal: AbortSignal): Promise<ReactionProposal> {
+    let response: Response;
     try {
-      const response = await fetch(`${this.opts.baseUrl}/chat/completions`, {
+      response = await fetch(`${this.opts.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           authorization: `Bearer ${this.opts.apiKey}`,
@@ -52,22 +55,26 @@ export class DeepSeekReactionModel implements ReactionModel {
         }),
         signal: AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]),
       });
-
-      if (!response.ok) {
-        // Drain the body so the connection can be reused.
-        await response.text().catch(() => {});
-        return NONE_PROPOSAL;
-      }
-
-      const body = (await response.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      const content = body.choices?.[0]?.message?.content;
-      if (!content) return NONE_PROPOSAL;
-      return parseProposal(content);
-    } catch {
-      return NONE_PROPOSAL;
+    } catch (err) {
+      if (signal.aborted) return NONE_PROPOSAL; // superseded, not a failure
+      throw err instanceof Error ? err : new Error("deepseek_fetch_failed");
     }
+
+    if (!response.ok) {
+      // Drain the body so the connection can be reused.
+      await response.text().catch(() => {});
+      throw new Error(`deepseek_status_${response.status}`);
+    }
+
+    let body: { choices?: { message?: { content?: string } }[] };
+    try {
+      body = (await response.json()) as typeof body;
+    } catch {
+      throw new Error("deepseek_bad_body");
+    }
+    const content = body.choices?.[0]?.message?.content;
+    if (!content) return NONE_PROPOSAL;
+    return parseProposal(content);
   }
 }
 

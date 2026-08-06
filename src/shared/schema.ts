@@ -27,7 +27,7 @@ export interface PublicSessionConfig {
   sound_manifest_version: string;
   max_session_seconds: number;
   transcription_provider: string;
-  classifier: "deepseek" | "heuristic";
+  classifier: "deepseek" | "workers-ai" | "heuristic";
 }
 
 // ---------------------------------------------------------------------------
