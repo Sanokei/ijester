@@ -13,8 +13,9 @@ export const LIMITS = {
   MAX_CHUNK_DURATION_MS: 15_000,
   /** Transcript retention window. */
   HOT_WINDOW_MS: 40_000,
-  /** The immediate window the classifier may target. */
-  IMMEDIATE_WINDOW_MS: 12_000,
+  /** The immediate window the classifier may target. Wide enough that a
+   * setup line survives an STT latency spike until its punchline is judged. */
+  IMMEDIATE_WINDOW_MS: 20_000,
   /** Cap on stored summary characters (~300-600 tokens). */
   MAX_SUMMARY_CHARS: 1_600,
   /** Absolute cap on cues per session. */

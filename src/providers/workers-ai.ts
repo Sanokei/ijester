@@ -16,6 +16,35 @@ import {
 } from "./reaction-model";
 
 /**
+ * Whisper reliably hallucinates these on silent or near-silent audio; as a
+ * complete utterance they are never real speech worth reacting to, and a
+ * junk segment triggers an evaluation round that delays the real one.
+ */
+const WHISPER_SILENCE_ARTIFACTS = new Set([
+  "you",
+  "thank you",
+  "thanks for watching",
+  "bye",
+  "uh",
+  "um",
+  "the",
+  "so",
+]);
+
+function isSilenceArtifact(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[.,!?\s]+$/g, "").trim();
+  return normalized === "" || WHISPER_SILENCE_ARTIFACTS.has(normalized);
+}
+
+function base64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+/**
  * Speech-to-text via Workers AI Whisper. Runs inside Cloudflare with no
  * extra API key. Whisper accepts the raw encoded bytes (webm/ogg/wav).
  */
@@ -26,12 +55,24 @@ export class WorkersAiTranscriptionProvider implements TranscriptionProvider {
 
   async transcribe(chunk: AudioChunk, signal: AbortSignal): Promise<TranscriptSegment[]> {
     if (signal.aborted) return [];
-    const result = (await this.ai.run("@cf/openai/whisper", {
-      audio: [...new Uint8Array(chunk.bytes)],
-    })) as { text?: string };
+    // Whisper large-v3-turbo is markedly faster and more accurate than the
+    // base model; STT latency spikes were pushing joint setup+punchline
+    // evaluations past the immediate window. It takes base64, not a byte
+    // array. One retry: a transient failure permanently eats this window's
+    // audio otherwise (the bytes are discarded right after this call), and
+    // a lost setup line makes the punchline unjudgeable.
+    const input = { audio: base64(new Uint8Array(chunk.bytes)) };
+    let result: { text?: string };
+    try {
+      result = (await this.ai.run("@cf/openai/whisper-large-v3-turbo", input)) as { text?: string };
+    } catch {
+      if (signal.aborted) return [];
+      await new Promise((r) => setTimeout(r, 250));
+      result = (await this.ai.run("@cf/openai/whisper-large-v3-turbo", input)) as { text?: string };
+    }
 
     const text = result.text?.trim();
-    if (!text) return [];
+    if (!text || isSilenceArtifact(text)) return [];
 
     return [
       {

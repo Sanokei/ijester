@@ -52,7 +52,10 @@
     "SESSION_TTL_SECONDS": "1800",
     "MAX_SESSION_SECONDS": "14400",
     "MAX_AUDIO_BYTES_PER_MINUTE": "2500000",
-    "REACTION_MIN_INTERVAL_MS": "2500",
+    // Kept short: a punchline often lands one window after its setup, and the
+    // deferred re-evaluation waits out this interval before judging the full
+    // joke. 2500 made laughs arrive ~5s late.
+    "REACTION_MIN_INTERVAL_MS": "1000",
     "REACTION_MODE": "standard",
     "LOG_LEVEL": "info"
   }
