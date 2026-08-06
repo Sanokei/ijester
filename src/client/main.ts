@@ -18,7 +18,13 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 const iris = new Iris(app);
 const status = new StatusAnnouncer(app);
 const sounds = new SoundEngine();
-const activity = new ActivityFeed(app);
+
+// Bottom dock: the activity panel stacks directly above the control bar so
+// they can never overlap, whatever height the bar wraps to.
+const dock = document.createElement("div");
+dock.className = "dock";
+app.appendChild(dock);
+const activity = new ActivityFeed(dock);
 
 const micIndicator = document.createElement("div");
 micIndicator.className = "mic-indicator";
@@ -176,7 +182,7 @@ async function start(stream: MediaStream): Promise<void> {
   });
   await microphone.start(stream);
 
-  controls ??= new Controls(app, sounds.getVolume(), {
+  controls ??= new Controls(dock, sounds.getVolume(), {
     onPauseToggle: (paused) => {
       localPaused = paused;
       if (paused) {
@@ -278,7 +284,7 @@ if (debugMode) {
       await client.create();
       await client.connect({ mime: PCM_MIME, reduced_motion: false, debug: true });
       session = client;
-      controls ??= new Controls(app, sounds.getVolume(), {
+      controls ??= new Controls(dock, sounds.getVolume(), {
         onPauseToggle: () => {},
         onMuteToggle: (m) => sounds.setMuted(m),
         onVolume: (v) => sounds.setVolume(v),

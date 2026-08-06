@@ -148,11 +148,20 @@ body {
 
 /* ------------------------------------------------------------- controls */
 
-.controls {
+/* Fixed bottom dock: activity panel stacked above the control bar. */
+.dock {
   position: fixed;
   bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px));
   left: 50%;
   translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  max-width: calc(100vw - 1.5rem);
+}
+
+.controls {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -268,10 +277,6 @@ body.controls-visible .controls {
 /* -------------------------------------------------------- activity feed */
 
 .activity-panel {
-  position: fixed;
-  bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  translate: -50% 0;
   width: min(320px, calc(100vw - 1.5rem));
   max-height: 42vh;
   overflow: auto;
