@@ -287,6 +287,10 @@ body.controls-visible .controls {
   padding: 0.75rem 0.9rem;
 }
 
+.activity-panel[hidden] {
+  display: none !important;
+}
+
 /* OverlayScrollbars floats the bar over the content, keeping the panel's
    rounded corners; these vars slim it down to match the aesthetic. */
 .activity-panel .os-scrollbar {
